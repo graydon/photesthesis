@@ -25,8 +25,6 @@ class Test {
   using Trajectories = std::map<Trajectory, Transcript>;
   using Failures = std::vector<PlanHash>;
 
-  void initTrajectory();
-  void finiTrajectory();
   Failures initializeCorpusFromKPaths(uint64_t kPathLength);
   Failures randomlyExpandCorpus(Trajectories &, uint64_t steps, uint64_t depth);
   Failures checkCorpus(Trajectories &);
@@ -36,6 +34,9 @@ class Test {
   void reportFailures(Failures const &) const;
 
 protected:
+  void initTrajectory();
+  void finiTrajectory();
+
   Value getParam(ParamName p) { return mTranscript.getPlan().getParam(p); }
 
   // Calling `invariant()` indicates a value you expect to be invariant across
