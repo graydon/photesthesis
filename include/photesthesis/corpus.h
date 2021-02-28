@@ -14,7 +14,8 @@
 #include <random>
 #include <tuple>
 
-namespace photesthesis {
+namespace photesthesis
+{
 
 using ParamName = Symbol;
 using RuleName = Symbol;
@@ -25,65 +26,68 @@ using VarName = Symbol;
 using PlanHash = uint64_t;
 using Trajectory = uint64_t;
 
-class Plan {
-  TestName mTestName;
-  Params mParams;
+class Plan
+{
+    TestName mTestName;
+    Params mParams;
 
-public:
-  Plan(TestName tname);
-  Plan(TestName tname, Params const &params);
+  public:
+    Plan(TestName tname);
+    Plan(TestName tname, Params const& params);
 
-  void addToHash(XXHash64 &h) const;
-  PlanHash getHashCode() const;
-  TestName getTestName() const;
-  ParamSpecs getParamSpecs() const;
-  void addParam(ParamName p, Value v);
-  Value getParam(ParamName p) const;
-  bool operator==(Plan const &other) const;
-  bool operator<(Plan const &other) const;
-  friend std::ostream &operator<<(std::ostream &os, const Plan &plan);
-  friend std::istream &operator>>(std::istream &is, Plan &plan);
+    void addToHash(XXHash64& h) const;
+    PlanHash getHashCode() const;
+    TestName getTestName() const;
+    ParamSpecs getParamSpecs() const;
+    void addParam(ParamName p, Value v);
+    Value getParam(ParamName p) const;
+    bool operator==(Plan const& other) const;
+    bool operator<(Plan const& other) const;
+    friend std::ostream& operator<<(std::ostream& os, const Plan& plan);
+    friend std::istream& operator>>(std::istream& is, Plan& plan);
 };
 
-std::ostream &operator<<(std::ostream &os, const Plan &plan);
-std::istream &operator>>(std::istream &is, Plan &plan);
+std::ostream& operator<<(std::ostream& os, const Plan& plan);
+std::istream& operator>>(std::istream& is, Plan& plan);
 
-class Transcript {
-  Plan mPlan;
-  std::vector<std::tuple<VarName, Value, bool>> mVars;
-  friend std::ostream &operator<<(std::ostream &os,
-                                  const Transcript &transcript);
-  friend std::istream &operator>>(std::istream &is, Transcript &transcript);
+class Transcript
+{
+    Plan mPlan;
+    std::vector<std::tuple<VarName, Value, bool>> mVars;
+    friend std::ostream& operator<<(std::ostream& os,
+                                    const Transcript& transcript);
+    friend std::istream& operator>>(std::istream& is, Transcript& transcript);
 
-public:
-  Transcript();
-  Transcript(TestName tn);
-  Transcript(Plan const &plan);
-  TestName getTestName() const;
-  Plan const &getPlan() const;
-  void addTrackedVar(VarName var, Value val);
-  void addCheckedVar(VarName var, Value val);
-  std::vector<std::tuple<VarName, Value, bool>> const &getVars() const;
-  void clearVars();
-  bool operator<(Transcript const &other) const;
-  bool operator==(Transcript const &other) const;
+  public:
+    Transcript();
+    Transcript(TestName tn);
+    Transcript(Plan const& plan);
+    TestName getTestName() const;
+    Plan const& getPlan() const;
+    void addTrackedVar(VarName var, Value val);
+    void addCheckedVar(VarName var, Value val);
+    std::vector<std::tuple<VarName, Value, bool>> const& getVars() const;
+    void clearVars();
+    bool operator<(Transcript const& other) const;
+    bool operator==(Transcript const& other) const;
 };
 
-std::ostream &operator<<(std::ostream &os, const Transcript &transcript);
-std::istream &operator>>(std::istream &is, Transcript &transcript);
-class Corpus {
-  std::string mPath;
-  bool mSaveOnDestroy;
-  bool mDirty;
-  std::map<TestName, std::set<Transcript>> mTranscripts;
+std::ostream& operator<<(std::ostream& os, const Transcript& transcript);
+std::istream& operator>>(std::istream& is, Transcript& transcript);
+class Corpus
+{
+    std::string mPath;
+    bool mSaveOnDestroy;
+    bool mDirty;
+    std::map<TestName, std::set<Transcript>> mTranscripts;
 
-public:
-  Corpus(std::string const &path = "", bool saveOnDestroy = true);
-  ~Corpus();
-  void markDirty();
-  void save();
-  std::set<Transcript> &getTranscripts(TestName tname);
-  void addTranscript(Transcript const &ts);
-  void updateTranscript(Transcript const &ts);
+  public:
+    Corpus(std::string const& path = "", bool saveOnDestroy = true);
+    ~Corpus();
+    void markDirty();
+    void save();
+    std::set<Transcript>& getTranscripts(TestName tname);
+    void addTranscript(Transcript const& ts);
+    void updateTranscript(Transcript const& ts);
 };
 } // namespace photesthesis

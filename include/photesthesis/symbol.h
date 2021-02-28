@@ -12,27 +12,33 @@
 #include <set>
 #include <string>
 
-namespace photesthesis {
+namespace photesthesis
+{
 
 /// A Symbol is a globally-unique isalnum()-and-hyphens identifier for use
 /// in a Grammar, either as a terminal or nonterminal.
-class Symbol {
-  std::shared_ptr<std::string> mInterned;
-  static std::shared_ptr<std::string> intern(std::string const &);
+class Symbol
+{
+    std::shared_ptr<std::string> mInterned;
+    static std::shared_ptr<std::string> intern(std::string const&);
 
-public:
-  Symbol(std::string const &s);
-  Symbol(Symbol const &) = default;
-  Symbol &operator=(Symbol const &) = default;
+  public:
+    Symbol(std::string const& s);
+    Symbol(Symbol const&) = default;
+    Symbol& operator=(Symbol const&) = default;
 
-  bool operator==(Symbol const &other) const;
-  bool operator<(Symbol const &other) const;
+    bool operator==(Symbol const& other) const;
+    bool operator<(Symbol const& other) const;
 
-  std::string const &getString() const { return *mInterned; };
-  friend std::ostream &operator<<(std::ostream &os, const Symbol &sym);
-  friend std::istream &operator>>(std::istream &is, Symbol &sym);
+    std::string const&
+    getString() const
+    {
+        return *mInterned;
+    };
+    friend std::ostream& operator<<(std::ostream& os, const Symbol& sym);
+    friend std::istream& operator>>(std::istream& is, Symbol& sym);
 };
 
-std::ostream &operator<<(std::ostream &os, const Symbol &sym);
-std::istream &operator>>(std::istream &is, Symbol &sym);
+std::ostream& operator<<(std::ostream& os, const Symbol& sym);
+std::istream& operator>>(std::istream& is, Symbol& sym);
 } // namespace photesthesis

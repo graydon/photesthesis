@@ -11,238 +11,333 @@
 #include <string>
 #include <tuple>
 
-namespace photesthesis {
+namespace photesthesis
+{
 
 #pragma region // Plan
 
-Plan::Plan(TestName tname) : mTestName(tname) {}
-
-Plan::Plan(TestName tname, Params const &params)
-    : mTestName(tname), mParams(params) {}
-
-void Plan::addToHash(XXHash64 &h) const {
-  addSymbolToHash(h, mTestName);
-  addStringToHash(h, ":");
-  for (auto const &pair : mParams) {
-    addKeyValueToHash(h, pair.first, pair.second);
-  }
+Plan::Plan(TestName tname) : mTestName(tname)
+{
 }
 
-uint64_t Plan::getHashCode() const {
-  XXHash64 h{0};
-  addToHash(h);
-  return h.hash();
+Plan::Plan(TestName tname, Params const& params)
+    : mTestName(tname), mParams(params)
+{
 }
 
-TestName Plan::getTestName() const { return mTestName; }
-
-ParamSpecs Plan::getParamSpecs() const {
-  ParamSpecs specs;
-  for (auto const &pair : mParams) {
-    specs.emplace(pair.first, headSymbol(pair.second));
-  }
-  return specs;
+void
+Plan::addToHash(XXHash64& h) const
+{
+    addSymbolToHash(h, mTestName);
+    addStringToHash(h, ":");
+    for (auto const& pair : mParams)
+    {
+        addKeyValueToHash(h, pair.first, pair.second);
+    }
 }
 
-void Plan::addParam(ParamName p, Value v) { mParams.emplace(p, v); }
-
-Value Plan::getParam(ParamName p) const {
-  auto i = mParams.find(p);
-  if (i == mParams.end()) {
-    throw std::runtime_error(std::string("unknown param: ") + p.getString());
-  }
-  return i->second;
+uint64_t
+Plan::getHashCode() const
+{
+    XXHash64 h{0};
+    addToHash(h);
+    return h.hash();
 }
 
-bool Plan::operator<(Plan const &other) const {
-  return std::tie(mTestName, mParams) <
-         std::tie(other.mTestName, other.mParams);
+TestName
+Plan::getTestName() const
+{
+    return mTestName;
 }
 
-bool Plan::operator==(Plan const &other) const {
-  return std::tie(mTestName, mParams) ==
-         std::tie(other.mTestName, other.mParams);
+ParamSpecs
+Plan::getParamSpecs() const
+{
+    ParamSpecs specs;
+    for (auto const& pair : mParams)
+    {
+        specs.emplace(pair.first, headSymbol(pair.second));
+    }
+    return specs;
 }
 
-bool Transcript::operator<(Transcript const &other) const {
-  return std::tie(mPlan, mVars) < std::tie(other.mPlan, other.mVars);
+void
+Plan::addParam(ParamName p, Value v)
+{
+    mParams.emplace(p, v);
 }
 
-bool Transcript::operator==(Transcript const &other) const {
-  return std::tie(mPlan, mVars) == std::tie(other.mPlan, other.mVars);
+Value
+Plan::getParam(ParamName p) const
+{
+    auto i = mParams.find(p);
+    if (i == mParams.end())
+    {
+        throw std::runtime_error(std::string("unknown param: ") +
+                                 p.getString());
+    }
+    return i->second;
 }
 
-std::ostream &operator<<(std::ostream &os, const Plan &plan) {
-  for (auto const &pair : plan.mParams) {
-    os << "param: " << pair.first << " = " << pair.second << std::endl;
-  }
-  return os;
+bool
+Plan::operator<(Plan const& other) const
+{
+    return std::tie(mTestName, mParams) <
+           std::tie(other.mTestName, other.mParams);
 }
 
-std::istream &operator>>(std::istream &is, Plan &plan) {
-  plan.mParams.clear();
-  scanWhitespace(is);
-  while (is && is.peek() == 'p') {
-    ParamName pname("");
-    Value val;
-    std::string PARAM, EQ;
-    is >> PARAM >> pname >> EQ >> val;
-    expectNoFail(is);
-    expectStr(is, "param:", PARAM);
-    expectStr(is, "=", EQ);
-    expectNonemptyStr(is, pname.getString());
-    plan.addParam(pname, val);
+bool
+Plan::operator==(Plan const& other) const
+{
+    return std::tie(mTestName, mParams) ==
+           std::tie(other.mTestName, other.mParams);
+}
+
+bool
+Transcript::operator<(Transcript const& other) const
+{
+    return std::tie(mPlan, mVars) < std::tie(other.mPlan, other.mVars);
+}
+
+bool
+Transcript::operator==(Transcript const& other) const
+{
+    return std::tie(mPlan, mVars) == std::tie(other.mPlan, other.mVars);
+}
+
+std::ostream&
+operator<<(std::ostream& os, const Plan& plan)
+{
+    for (auto const& pair : plan.mParams)
+    {
+        os << "param: " << pair.first << " = " << pair.second << std::endl;
+    }
+    return os;
+}
+
+std::istream&
+operator>>(std::istream& is, Plan& plan)
+{
+    plan.mParams.clear();
     scanWhitespace(is);
-  }
-  return is;
+    while (is && is.peek() == 'p')
+    {
+        ParamName pname("");
+        Value val;
+        std::string PARAM, EQ;
+        is >> PARAM >> pname >> EQ >> val;
+        expectNoFail(is);
+        expectStr(is, "param:", PARAM);
+        expectStr(is, "=", EQ);
+        expectNonemptyStr(is, pname.getString());
+        plan.addParam(pname, val);
+        scanWhitespace(is);
+    }
+    return is;
 }
 
 #pragma endregion // Plan
 
 #pragma region // Transcript
 
-Transcript::Transcript() : mPlan(TestName{""}) {}
-
-Transcript::Transcript(TestName tn) : mPlan(tn) {}
-
-Transcript::Transcript(Plan const &plan) : mPlan(plan) {}
-
-TestName Transcript::getTestName() const { return mPlan.getTestName(); }
-
-Plan const &Transcript::getPlan() const { return mPlan; }
-
-void Transcript::addTrackedVar(VarName var, Value val) {
-  mVars.emplace_back(var, val, true);
+Transcript::Transcript() : mPlan(TestName{""})
+{
 }
 
-void Transcript::addCheckedVar(VarName var, Value val) {
-  mVars.emplace_back(var, val, false);
+Transcript::Transcript(TestName tn) : mPlan(tn)
+{
 }
 
-std::vector<std::tuple<VarName, Value, bool>> const &
-Transcript::getVars() const {
-  return mVars;
+Transcript::Transcript(Plan const& plan) : mPlan(plan)
+{
 }
 
-void Transcript::clearVars() { mVars.clear(); }
-std::ostream &operator<<(std::ostream &os, const Transcript &transcript) {
-  os << "#### transcript: " << transcript.getTestName() << " 0x" << std::hex
-     << transcript.getPlan().getHashCode() << std::dec << std::endl;
-  os << transcript.mPlan;
-  for (auto const &triple : transcript.mVars) {
-    if (std::get<2>(triple)) {
-      os << "track: " << std::get<0>(triple) << " = " << std::get<1>(triple)
-         << std::endl;
-    } else {
-      os << "check: " << std::get<0>(triple) << " = " << std::get<1>(triple)
-         << std::endl;
+TestName
+Transcript::getTestName() const
+{
+    return mPlan.getTestName();
+}
+
+Plan const&
+Transcript::getPlan() const
+{
+    return mPlan;
+}
+
+void
+Transcript::addTrackedVar(VarName var, Value val)
+{
+    mVars.emplace_back(var, val, true);
+}
+
+void
+Transcript::addCheckedVar(VarName var, Value val)
+{
+    mVars.emplace_back(var, val, false);
+}
+
+std::vector<std::tuple<VarName, Value, bool>> const&
+Transcript::getVars() const
+{
+    return mVars;
+}
+
+void
+Transcript::clearVars()
+{
+    mVars.clear();
+}
+std::ostream&
+operator<<(std::ostream& os, const Transcript& transcript)
+{
+    os << "#### transcript: " << transcript.getTestName() << " 0x" << std::hex
+       << transcript.getPlan().getHashCode() << std::dec << std::endl;
+    os << transcript.mPlan;
+    for (auto const& triple : transcript.mVars)
+    {
+        if (std::get<2>(triple))
+        {
+            os << "track: " << std::get<0>(triple) << " = "
+               << std::get<1>(triple) << std::endl;
+        }
+        else
+        {
+            os << "check: " << std::get<0>(triple) << " = "
+               << std::get<1>(triple) << std::endl;
+        }
     }
-  }
-  os << std::endl;
-  return os;
+    os << std::endl;
+    return os;
 }
 
-std::istream &operator>>(std::istream &is, Transcript &transcript) {
-  transcript = Transcript();
-  std::string HASHES, TRANSCRIPT;
-  TestName tname("");
-  uint64_t plan_hash{0};
-  is >> HASHES >> TRANSCRIPT >> tname >> std::hex >> plan_hash >> std::dec;
-  expectNoFail(is);
-  expectNonemptyStr(is, tname.getString());
-  Plan plan(tname);
-  is >> plan;
-  expectNoFail(is);
-  expectVal<int64_t>(is, plan_hash, plan.getHashCode());
-  transcript = Transcript(plan);
-
-  scanWhitespace(is);
-  while (is && (is.peek() == 'c' || is.peek() == 't')) {
-    std::string KW, EQ;
-    VarName vname("");
-    Value val;
-    is >> KW >> vname >> EQ >> val;
+std::istream&
+operator>>(std::istream& is, Transcript& transcript)
+{
+    transcript = Transcript();
+    std::string HASHES, TRANSCRIPT;
+    TestName tname("");
+    uint64_t plan_hash{0};
+    is >> HASHES >> TRANSCRIPT >> tname >> std::hex >> plan_hash >> std::dec;
     expectNoFail(is);
-    expectStr(is, "=", EQ);
-    expectNonemptyStr(is, vname.getString());
-    if (KW != "check:" && KW != "track:") {
-      throw std::runtime_error(
-          std::string("expecting either 'check:' or 'track:', got '") + KW +
-          "' at offset " + std::to_string(is.tellg()));
-    }
-    bool tracked = (KW == "track:");
-    transcript.mVars.emplace_back(vname, val, tracked);
+    expectNonemptyStr(is, tname.getString());
+    Plan plan(tname);
+    is >> plan;
+    expectNoFail(is);
+    expectVal<int64_t>(is, plan_hash, plan.getHashCode());
+    transcript = Transcript(plan);
+
     scanWhitespace(is);
-  }
-  return is;
+    while (is && (is.peek() == 'c' || is.peek() == 't'))
+    {
+        std::string KW, EQ;
+        VarName vname("");
+        Value val;
+        is >> KW >> vname >> EQ >> val;
+        expectNoFail(is);
+        expectStr(is, "=", EQ);
+        expectNonemptyStr(is, vname.getString());
+        if (KW != "check:" && KW != "track:")
+        {
+            throw std::runtime_error(
+                std::string("expecting either 'check:' or 'track:', got '") +
+                KW + "' at offset " + std::to_string(is.tellg()));
+        }
+        bool tracked = (KW == "track:");
+        transcript.mVars.emplace_back(vname, val, tracked);
+        scanWhitespace(is);
+    }
+    return is;
 }
 
 #pragma endregion // Transcript
 
 #pragma region // Corpus
 
-Corpus::Corpus(std::string const &path, bool saveOnDestroy)
-    : mPath(path), mSaveOnDestroy(saveOnDestroy), mDirty(false) {
-  if (!mPath.empty()) {
-    std::ifstream in(mPath);
-    scanWhitespace(in);
-    while (in.peek() != EOF) {
-      Transcript trans;
-      in >> trans;
-      addTranscript(trans);
-      if (in.eof()) {
-        break;
-      }
-      expectNoFail(in);
-      scanWhitespace(in);
+Corpus::Corpus(std::string const& path, bool saveOnDestroy)
+    : mPath(path), mSaveOnDestroy(saveOnDestroy), mDirty(false)
+{
+    if (!mPath.empty())
+    {
+        std::ifstream in(mPath);
+        scanWhitespace(in);
+        while (in.peek() != EOF)
+        {
+            Transcript trans;
+            in >> trans;
+            addTranscript(trans);
+            if (in.eof())
+            {
+                break;
+            }
+            expectNoFail(in);
+            scanWhitespace(in);
+        }
     }
-  }
-  mDirty = false;
+    mDirty = false;
 }
 
-Corpus::~Corpus() {
-  if (mSaveOnDestroy) {
-    save();
-  }
-}
-
-void Corpus::markDirty() { mDirty = true; }
-
-void Corpus::save() {
-  if (mDirty) {
-    std::ofstream out(mPath, std::ios::out | std::ios::trunc);
-    for (auto const &pair : mTranscripts) {
-      for (auto const &t : pair.second) {
-        out << t;
-      }
+Corpus::~Corpus()
+{
+    if (mSaveOnDestroy)
+    {
+        save();
     }
-  }
 }
 
-std::set<Transcript> &Corpus::getTranscripts(TestName tname) {
-  return mTranscripts[tname];
+void
+Corpus::markDirty()
+{
+    mDirty = true;
 }
 
-void Corpus::addTranscript(Transcript const &ts) {
-  bool inserted = getTranscripts(ts.getTestName()).emplace(ts).second;
-  assert(inserted);
-  markDirty();
-}
-
-void Corpus::updateTranscript(Transcript const &ts) {
-  auto &tss = getTranscripts(ts.getTestName());
-  bool erased = false;
-  for (auto i = tss.begin(); i != tss.end(); ++i) {
-    if (i->getPlan() == ts.getPlan()) {
-      i = tss.erase(i);
-      erased = true;
-      break;
+void
+Corpus::save()
+{
+    if (mDirty)
+    {
+        std::ofstream out(mPath, std::ios::out | std::ios::trunc);
+        for (auto const& pair : mTranscripts)
+        {
+            for (auto const& t : pair.second)
+            {
+                out << t;
+            }
+        }
     }
-  }
-  assert(erased);
-  bool inserted = tss.emplace(ts).second;
-  assert(inserted);
-  markDirty();
+}
+
+std::set<Transcript>&
+Corpus::getTranscripts(TestName tname)
+{
+    return mTranscripts[tname];
+}
+
+void
+Corpus::addTranscript(Transcript const& ts)
+{
+    bool inserted = getTranscripts(ts.getTestName()).emplace(ts).second;
+    assert(inserted);
+    markDirty();
+}
+
+void
+Corpus::updateTranscript(Transcript const& ts)
+{
+    auto& tss = getTranscripts(ts.getTestName());
+    bool erased = false;
+    for (auto i = tss.begin(); i != tss.end(); ++i)
+    {
+        if (i->getPlan() == ts.getPlan())
+        {
+            i = tss.erase(i);
+            erased = true;
+            break;
+        }
+    }
+    assert(erased);
+    bool inserted = tss.emplace(ts).second;
+    assert(inserted);
+    markDirty();
 }
 
 #pragma endregion // Corpus
