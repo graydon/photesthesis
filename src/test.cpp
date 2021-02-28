@@ -3,6 +3,7 @@
 // of this distribution or at http://www.apache.org/licenses/LICENSE-2.0
 
 #include <cstdint>
+#include <cassert>
 #include <cstring>
 #include <iostream>
 #include <photesthesis/3rdparty/xxhash64.h>
@@ -49,6 +50,10 @@ bool getEnvRandomSeed(uint64_t &seed) {
   return getEnvNum("PHOTESTHESIS_RANDOM_SEED", seed);
 }
 
+bool getStabilityRetries(uint64_t &retries) {
+  return getEnvNum("PHOTESTHESIS_STABILITY_RETRIES", retries);
+}
+
 } // namespace
 
 extern "C" {
@@ -57,29 +62,72 @@ __sanitizer_cov_8bit_counters_init(uint8_t *Start, uint8_t *Stop) {
   gCov8BitStart = Start;
   gCov8BitLen = Stop - Start;
 }
-
-__attribute__((visibility("default"))) void
-__sanitizer_cov_pcs_init(const uintptr_t *pcs_beg, const uintptr_t *pcs_end) {
-  //...
-}
 }
 
 namespace photesthesis {
 
-void Test::finiTrajectory() {
-  if (gCov8BitLen != 0) {
-    mTrajHasher.add(gCov8BitStart, gCov8BitLen);
-  }
-  mTrajectory = mTrajHasher.hash();
+// This is the counter-simplificaiton map used in AFL.
+static const uint8_t CounterClasses[256] = {
+  0, 1, 2, 4, 8, 8, 8, 8,
+#define ROW8(n) n, n, n, n, n, n, n, n
+  ROW8(16),
+  ROW8(32), ROW8(32),
+  ROW8(64), ROW8(64), ROW8(64), ROW8(64),
+  ROW8(64), ROW8(64), ROW8(64), ROW8(64),
+  ROW8(64), ROW8(64), ROW8(64), ROW8(64),
+  ROW8(128), ROW8(128), ROW8(128), ROW8(128),
+  ROW8(128), ROW8(128), ROW8(128), ROW8(128),
+  ROW8(128), ROW8(128), ROW8(128), ROW8(128),
+  ROW8(128), ROW8(128), ROW8(128), ROW8(128),
+#undef ROW8
+};
+
+void Test::initUserTrajectory() {
+  mUserTrajectory = 0;
+  mUserTrajHasher = XXHash64(0);
 }
 
-void Test::initTrajectory() {
-  mTrajectory = 0;
-  mTrajHasher = XXHash64(0);
+void Test::initPathTrajectory() {
+  mPathTrajectory = 0;
   if (gCov8BitLen != 0) {
     std::memset(gCov8BitStart, 0, gCov8BitLen);
   }
 }
+
+void Test::initTrajectory() {
+  initPathTrajectory();
+  initUserTrajectory();
+}
+
+void Test::finiPathTrajectory() {
+  if (mPathTrajStabilityMask.empty()) {
+    for (size_t i = 0; i < gCov8BitLen; ++i) {
+      gCov8BitStart[i] = CounterClasses[gCov8BitStart[i]];
+    }
+  } else {
+    assert(mPathTrajStabilityMask.size() == gCov8BitLen);
+    for (size_t i = 0; i < gCov8BitLen; ++i) {
+      gCov8BitStart[i] = CounterClasses[gCov8BitStart[i]] & mPathTrajStabilityMask[i];
+    }
+  }
+  if (gCov8BitLen != 0) {
+    mPathTrajectory = XXHash64::hash(gCov8BitStart, gCov8BitLen, 0);
+  }
+}
+
+void Test::finiUserTrajectory() {
+  mUserTrajectory = mUserTrajHasher.hash();
+}
+
+void Test::finiTrajectory() {
+  finiPathTrajectory();
+  finiUserTrajectory();
+  XXHash64 trajHasher{0};
+  trajHasher.add(&mPathTrajectory, sizeof(mPathTrajectory));
+  trajHasher.add(&mUserTrajectory, sizeof(mUserTrajectory));
+  mTrajectory = trajHasher.hash();
+}
+
 
 void Test::seedFromRandomDevice() {
   std::random_device dev;
@@ -94,12 +142,73 @@ void Test::runPlan(Plan const &plan) {
   initTrajectory();
   run();
   finiTrajectory();
+  if (mVerboseLevel > 1) {
+    std::cout << "ran plan:" << std::endl;
+    std::cout << plan;
+    std::cout << "with trajectory: " << mTrajectory << std::endl;
+  }
+}
+
+void
+Test::runPlanAndStabilize(Plan const& plan) {
+  runPlan(plan);
+  Trajectory savedUserTrajectory = mUserTrajectory;
+  Trajectory savedPathTrajectory = mPathTrajectory;
+  runPlan(plan);
+  if (mUserTrajectory != savedUserTrajectory) {
+    throw std::runtime_error("user-provided (trace/track) trajectory is unstable");
+  }
+  if (mPathTrajectory != savedPathTrajectory) {
+    if (mVerboseLevel > 0) {
+    std::cout << "path trajectory is unstable on plan "
+              << plan.getHashCode() << ", attempting to stabilize" << std::endl;
+    }
+    assert(gCov8BitLen != 0);
+    if (mPathTrajStabilityMask.empty()) {
+      mPathTrajStabilityMask.resize(gCov8BitLen, 0xff);
+    }
+    size_t nMasked, nNewMasked;
+    uint64_t stabilityAttempts{0}, retries{0};
+    getStabilityRetries(retries);
+    while (stabilityAttempts < retries) {
+      do {
+      std::vector<uint8_t> savedPathBuf{gCov8BitStart, gCov8BitStart + gCov8BitLen};
+      runPlan(plan);
+      nNewMasked = 0;
+      nMasked = 0;
+      for (size_t i = 0; i < gCov8BitLen; ++i) {
+        if (mPathTrajStabilityMask[i]) {
+          if (savedPathBuf[i] != gCov8BitStart[i]) {
+            nNewMasked += 1;
+            mPathTrajStabilityMask[i] = 0;
+          }
+        } else {
+          nMasked += 1;
+        }
+      }
+      if (mVerboseLevel > 0) {
+        std::cout << "masked " << nNewMasked << " path-edges as unstable";
+        std::cout << ", total unstable edges: " << nMasked << "/" << gCov8BitLen << std::endl;
+      }
+      } while (nNewMasked != 0);
+
+      stabilityAttempts += 1;
+
+      // Should have stabilized by here. Hopefully.
+      savedPathTrajectory = mPathTrajectory;
+      runPlan(plan);
+      if (savedPathTrajectory == mPathTrajectory) {
+        return;
+      }
+    }
+    throw std::runtime_error("unable to stabilize path trajectory, try raising PHOTESTHESIS_STABILITY_RETRIES");
+  }
 }
 
 bool Test::runPlanAndMaybeExpandCorpus(Plan const &plan,
                                        Trajectories &trajectories) {
   auto tname = plan.getTestName();
-  runPlan(plan);
+  runPlanAndStabilize(plan);
   if (trajectories.find(mTrajectory) == trajectories.end() &&
       mCorp.getTranscripts(tname).find(mTranscript) ==
           mCorp.getTranscripts(tname).end()) {
@@ -137,22 +246,31 @@ Test::Failures Test::initializeCorpusFromKPaths(uint64_t kPathLength) {
   Failures failures;
   if (mVerboseLevel > 0) {
     std::cout << "generating initial " << kPathLength
-              << "-paths for test: " << tname;
+              << "-paths for test: " << tname << std::endl;
   }
   size_t nPlans = 0;
   for (auto const &spec : mSeedSpecs) {
-    for (auto const &plan : mGram.populatePlansFromKPathCoverings(
-             tname, spec, static_cast<size_t>(kPathLength))) {
+    for (auto k = 2; k < kPathLength; ++k) {
+    auto plans =  mGram.populatePlansFromKPathCoverings(
+             tname, spec, static_cast<size_t>(k));
+    if (mVerboseLevel > 0) {
+      std::cout << "running " << plans.size() << " test-plans for spec with " << spec.size() << " parameters" << std::endl;
+    }
+    for (auto const &plan : plans) {
+      if (plan.getParamSpecs().size() != spec.size()) {
+        //continue;
+      }
       ++nPlans;
       runPlanAndMaybeExpandCorpus(plan, trajectories);
       if (mFailed) {
         failures.emplace_back(plan.getHashCode());
       }
     }
+    }
   }
   if (mVerboseLevel > 0) {
     std::cout << "generated " << nPlans << " initial plans with "
-              << trajectories.size() << " trajectories for test: " << tname;
+              << trajectories.size() << " trajectories for test: " << tname << std::endl;
     reportFailures(failures);
   }
   return failures;
@@ -237,7 +355,7 @@ void Test::invariant(VarName vn, Value expected, Value got) {
 }
 
 void Test::trace(VarName vn, Value seen) {
-  addKeyValueToHash(mTrajHasher, vn, seen);
+  addKeyValueToHash(mUserTrajHasher, vn, seen);
 }
 
 void Test::check(VarName vn, Value seen) {
@@ -302,7 +420,7 @@ void Test::handleTranscriptMismatch(Transcript const &expected,
 }
 
 void Test::checkTranscript(Transcript const &ts) {
-  runPlan(ts.getPlan());
+  runPlanAndStabilize(ts.getPlan());
   if (!(ts == mTranscript)) {
     handleTranscriptMismatch(ts, mTranscript);
     mCorp.updateTranscript(mTranscript);

@@ -18,18 +18,35 @@ class Test {
   bool mFailed{false};
   uint64_t mVerboseLevel{0};
 
-  XXHash64 mTrajHasher{0};
+  // Trajectories are calculated from a combination of a path trajectory
+  // (calculated automatically from instrumentation) and a "user" trajectory
+  // (calculated from values the user's test explicitly records with track or
+  // trace).
+  //
+  // The path trajectory is automatically "stabilized" by calculating a mask
+  // vector to exclude from the instrumentation counters; if the user trajectory
+  // is unstable, it's an error the user has to fix.
+  std::vector<uint8_t> mPathTrajStabilityMask;
+  XXHash64 mUserTrajHasher{0};
+  Trajectory mPathTrajectory{0};
+  Trajectory mUserTrajectory{0};
   Trajectory mTrajectory{0};
   Transcript mTranscript;
 
   using Trajectories = std::map<Trajectory, Transcript>;
   using Failures = std::vector<PlanHash>;
 
+  void initPathTrajectory();
+  void initUserTrajectory();
+  void finiPathTrajectory();
+  void finiUserTrajectory();
+
   Failures initializeCorpusFromKPaths(uint64_t kPathLength);
   Failures randomlyExpandCorpus(Trajectories &, uint64_t steps, uint64_t depth);
   Failures checkCorpus(Trajectories &);
   void checkTranscript(Transcript const &);
   void runPlan(Plan const &);
+  void runPlanAndStabilize(Plan const&);
   bool runPlanAndMaybeExpandCorpus(Plan const &, Trajectories &);
   void reportFailures(Failures const &) const;
 
