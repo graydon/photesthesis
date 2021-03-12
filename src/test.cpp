@@ -448,7 +448,8 @@ Test::randomlyExpandCorpus(Trajectories& trajectories, uint64_t steps,
     Failures failures;
     if (mVerboseLevel > 0)
     {
-        std::cout << "expanding corpus for test: " << tname << std::endl;
+        std::cout << "expanding corpus for test: " << tname << std::endl
+                  << "exploring " << steps << " random plans" << std::endl;
     }
     for (uint64_t i = 0; i < steps; ++i)
     {
@@ -476,10 +477,12 @@ Test::randomlyExpandCorpus(Trajectories& trajectories, uint64_t steps,
     }
     if (mVerboseLevel > 0)
     {
-        std::cout << "explored " << steps << " random inputs at depth " << depth
-                  << ", expanded corpus by " << newTrajs << " to "
+        std::cout << "explored " << steps << " random plans at depth "
+                  << depth << std::endl
+                  << "expanded corpus by " << newTrajs << " to "
                   << mCorp.getTranscripts(tname).size()
-                  << " distinct trajectories " << std::endl;
+                  << " distinct trajectories over "
+                  << gCov8BitLen << " edge counters" << std::endl;
         reportFailures(failures);
     }
     return failures;
