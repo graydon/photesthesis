@@ -114,6 +114,8 @@ Test::initPathTrajectory()
     if (gCov8BitLen != 0)
     {
         std::memset(gCov8BitStart, 0, gCov8BitLen);
+        mPathTrajCounters.clear();
+        mPathTrajCounters.resize(gCov8BitLen, 0);
     }
 }
 
@@ -127,11 +129,16 @@ Test::initTrajectory()
 void
 Test::finiPathTrajectory()
 {
+    if (gCov8BitLen != 0)
+    {
+        assert(gCov8BitLen == mPathTrajCounters.size());
+        std::memcpy(mPathTrajCounters.data(), gCov8BitStart, gCov8BitLen);
+    }
     if (mPathTrajStabilityMask.empty())
     {
         for (size_t i = 0; i < gCov8BitLen; ++i)
         {
-            gCov8BitStart[i] = CounterClasses[gCov8BitStart[i]];
+            mPathTrajCounters[i] = CounterClasses[mPathTrajCounters[i]];
         }
     }
     else
@@ -139,13 +146,14 @@ Test::finiPathTrajectory()
         assert(mPathTrajStabilityMask.size() == gCov8BitLen);
         for (size_t i = 0; i < gCov8BitLen; ++i)
         {
-            gCov8BitStart[i] =
-                CounterClasses[gCov8BitStart[i]] & mPathTrajStabilityMask[i];
+            mPathTrajCounters[i] =
+                CounterClasses[mPathTrajCounters[i]] & mPathTrajStabilityMask[i];
         }
     }
     if (gCov8BitLen != 0)
     {
-        mPathTrajectory = XXHash64::hash(gCov8BitStart, gCov8BitLen, 0);
+        mPathTrajectory = XXHash64::hash(mPathTrajCounters.data(),
+                                         mPathTrajCounters.size(), 0);
     }
 }
 
@@ -170,12 +178,13 @@ void
 Test::seedFromRandomDevice()
 {
     std::random_device dev;
-    mGen.seed(dev());
+    seedWithValue(dev());
 }
 
 void
 Test::seedWithValue(uint64_t seed)
 {
+    mLastSeed = seed;
     mGen.seed(seed);
 }
 
@@ -209,6 +218,20 @@ Test::runPlanAndStabilize(Plan const& plan)
     }
     if (mPathTrajectory != savedPathTrajectory)
     {
+        // The 1st and 2nd runs of a plan often differ in path coverage while
+        // runs 2, 3, 4, ... are all the same; this is presumably due to
+        // various hidden states being initialized and remaining so thereafter.
+        // So if we see non-identity in 1-to-2, we check one more time at
+        // 2-to-3 before entering the auto-stabilization routine below.
+        savedPathTrajectory = mPathTrajectory;
+        runPlan(plan);
+        if (mPathTrajectory == savedPathTrajectory)
+        {
+            return;
+        }
+
+        // If we got here, 2-to-3 was still unstable, so we switch to
+        // examining the actually-unstable path counters (this is costly).
         if (mVerboseLevel > 0)
         {
             std::cout << "path trajectory is unstable on plan "
@@ -227,8 +250,7 @@ Test::runPlanAndStabilize(Plan const& plan)
         {
             do
             {
-                std::vector<uint8_t> savedPathBuf{gCov8BitStart,
-                                                  gCov8BitStart + gCov8BitLen};
+                std::vector<uint8_t> savedPathBuf = mPathTrajCounters;
                 runPlan(plan);
                 nNewMasked = 0;
                 nMasked = 0;
@@ -236,9 +258,16 @@ Test::runPlanAndStabilize(Plan const& plan)
                 {
                     if (mPathTrajStabilityMask[i])
                     {
-                        if (savedPathBuf[i] != gCov8BitStart[i])
+                        if (savedPathBuf[i] != mPathTrajCounters[i])
                         {
+                            if (mVerboseLevel > 0)
+                            {
+                                std::cout << "path counter " << i << " is still unstable: "
+                                << static_cast<int>(savedPathBuf[i]) << " vs. "
+                                << static_cast<int>(mPathTrajCounters[i]) << std::endl;
+                            }
                             nNewMasked += 1;
+                            nMasked += 1;
                             mPathTrajStabilityMask[i] = 0;
                         }
                     }

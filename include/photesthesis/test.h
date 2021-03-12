@@ -16,6 +16,7 @@ class Test
 
     Grammar const& mGram;
     Corpus& mCorp;
+    uint64_t mLastSeed{0};
     std::default_random_engine mGen;
     bool mFailed{false};
     uint64_t mVerboseLevel{0};
@@ -29,6 +30,7 @@ class Test
     // vector to exclude from the instrumentation counters; if the user
     // trajectory is unstable, it's an error the user has to fix.
     std::vector<uint8_t> mPathTrajStabilityMask;
+    std::vector<uint8_t> mPathTrajCounters;
     XXHash64 mUserTrajHasher{0};
     Trajectory mPathTrajectory{0};
     Trajectory mUserTrajectory{0};
