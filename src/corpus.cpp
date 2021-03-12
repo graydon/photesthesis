@@ -120,13 +120,12 @@ operator>>(std::istream& is, Plan& plan)
 {
     plan.mParams.clear();
     scanWhitespace(is);
-    while (is && is.peek() == 'p')
+    while (is.good() && is.peek() == 'p')
     {
         ParamName pname("");
         Value val;
         std::string PARAM, EQ;
         is >> PARAM >> pname >> EQ >> val;
-        expectNoFail(is);
         expectStr(is, "param:", PARAM);
         expectStr(is, "=", EQ);
         expectNonemptyStr(is, pname.getString());
@@ -218,22 +217,19 @@ operator>>(std::istream& is, Transcript& transcript)
     TestName tname("");
     uint64_t plan_hash{0};
     is >> HASHES >> TRANSCRIPT >> tname >> std::hex >> plan_hash >> std::dec;
-    expectNoFail(is);
     expectNonemptyStr(is, tname.getString());
     Plan plan(tname);
     is >> plan;
-    expectNoFail(is);
     expectVal<int64_t>(is, plan_hash, plan.getHashCode());
     transcript = Transcript(plan);
 
     scanWhitespace(is);
-    while (is && (is.peek() == 'c' || is.peek() == 't'))
+    while (is.good() && (is.peek() == 'c' || is.peek() == 't'))
     {
         std::string KW, EQ;
         VarName vname("");
         Value val;
         is >> KW >> vname >> EQ >> val;
-        expectNoFail(is);
         expectStr(is, "=", EQ);
         expectNonemptyStr(is, vname.getString());
         if (KW != "check:" && KW != "track:")
@@ -259,18 +255,27 @@ Corpus::Corpus(std::string const& path, bool saveOnDestroy)
     if (!mPath.empty())
     {
         std::ifstream in(mPath);
-        scanWhitespace(in);
-        while (in.peek() != EOF)
+        if (in.good())
         {
-            Transcript trans;
-            in >> trans;
-            addTranscript(trans);
-            if (in.eof())
-            {
-                break;
-            }
-            expectNoFail(in);
+            in.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+        }
+        try {
             scanWhitespace(in);
+            while (in.good())
+            {
+                Transcript trans;
+                in >> trans;
+                addTranscript(trans);
+                scanWhitespace(in);
+            }
+        } catch (std::exception &e) {
+            std::string msg("error parsing file '");
+            msg += mPath;
+            msg += "' at offset ";
+            msg += std::to_string(in.tellg());
+            msg += ": ";
+            msg += std::string(e.what());
+            throw std::runtime_error(msg);
         }
     }
     mDirty = false;

@@ -94,16 +94,6 @@ pickUniform(std::default_random_engine& gen, std::map<K, V> const& elts)
     return *i;
 }
 
-inline void
-expectNoFail(std::istream& is)
-{
-    if (is.fail())
-    {
-        throw std::runtime_error(std::string("input stream failed at offset ") +
-                                 std::to_string(is.tellg()));
-    }
-}
-
 template <typename T>
 void
 expectVal(std::istream& is, T const& expected, T const& got)
@@ -144,7 +134,7 @@ expectNonemptyStr(std::istream& is, std::string const& s)
 inline void
 scanWhitespace(std::istream& is)
 {
-    while (is && std::isspace(is.peek()))
+    while (is.good() && std::isspace(is.peek()))
     {
         char c;
         is.get(c);

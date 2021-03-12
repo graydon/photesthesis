@@ -416,11 +416,11 @@ operator<<(std::ostream& os, const Value& val)
 std::istream&
 operator>>(std::istream& is, Value& val)
 {
-    if (!is)
+    scanWhitespace(is);
+    if (!is.good())
     {
         return is;
     }
-    scanWhitespace(is);
     switch (is.peek())
     {
     case EOF:
@@ -430,14 +430,13 @@ operator>>(std::istream& is, Value& val)
         char c;
         is.get(c);
         std::vector<Value> vals;
-        while (is && is.peek() != ')')
+        while (is.good() && is.peek() != ')')
         {
             Value tmp;
             is >> tmp;
-            expectNoFail(is);
             vals.emplace_back(tmp);
         }
-        if (is && is.peek() == ')')
+        if (is.good() && is.peek() == ')')
         {
             is.get(c);
             val = Value(vals);
@@ -453,12 +452,12 @@ operator>>(std::istream& is, Value& val)
         char c;
         is.get(c);
         std::vector<uint8_t> bytes;
-        while (is && is.peek() != ']')
+        while (is.good() && is.peek() != ']')
         {
             bytes.emplace_back();
             is >> std::hex >> bytes.back();
         }
-        if (is && is.peek() == ']')
+        if (is.good() && is.peek() == ']')
         {
             is.get(c);
             val = Value(bytes);
@@ -474,12 +473,12 @@ operator>>(std::istream& is, Value& val)
         std::string tmp;
         char c;
         is.get(c);
-        while (is && is.peek() != '"')
+        while (is.good() && is.peek() != '"')
         {
             is.get(c);
             if (c == '\\')
             {
-                if (!is)
+                if (!is.good())
                 {
                     throw std::runtime_error("incomplete string escape");
                 }
@@ -487,7 +486,7 @@ operator>>(std::istream& is, Value& val)
             }
             tmp += c;
         }
-        if (is && is.peek() == '"')
+        if (is.good() && is.peek() == '"')
         {
             is.get(c);
             val = Value(tmp);
@@ -506,11 +505,7 @@ operator>>(std::istream& is, Value& val)
         {
             is.get(c);
             tmp += c;
-        } while (is && std::isalnum(is.peek()));
-        if (is.fail())
-        {
-            throw std::runtime_error("incomplete special symbol");
-        }
+        } while (is.good() && std::isalnum(is.peek()));
         if (tmp == "#t")
         {
             val = Value::Bool(true);
@@ -535,7 +530,6 @@ operator>>(std::istream& is, Value& val)
         {
             int64_t tmp{0};
             is >> tmp;
-            expectNoFail(is);
             val = Value::Int64(tmp);
         }
         else if (is.peek() == '_' || std::isalnum(is.peek()))
@@ -546,8 +540,7 @@ operator>>(std::istream& is, Value& val)
             {
                 is.get(c);
                 tmp += c;
-            } while (is.peek() == '_' || std::isalnum(is.peek()));
-            expectNoFail(is);
+            } while (is.good() && (is.peek() == '_' || std::isalnum(is.peek())));
             val = Value(Symbol(tmp));
         }
     }
