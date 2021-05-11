@@ -14,41 +14,6 @@
 namespace photesthesis
 {
 
-#pragma region // Params
-
-void
-add_param(Params& p, ParamName n, Value v)
-{
-    assert(!has_param(p, n));
-    p.emplace_back(n, v);
-}
-
-bool
-has_param(Params const& p, ParamName n)
-{
-    for (auto const& pair : p)
-    {
-        if (pair.first == n)
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
-Value
-get_param(Params const& p, ParamName n)
-{
-    for (auto const& pair : p)
-    {
-        if (pair.first == n)
-        {
-            return pair.second;
-        }
-    }
-    throw std::runtime_error(std::string("unknown param: ") + n.getString());
-}
-
 #pragma region // Plan
 
 Plan::Plan(TestName tname) : mTestName(tname)
@@ -96,7 +61,7 @@ Plan::getParamSpecs() const
     ParamSpecs specs;
     for (auto const& pair : mParams)
     {
-        specs.emplace(pair.first, headSymbol(pair.second));
+        specs.emplace_back(pair.first, headSymbol(pair.second));
     }
     return specs;
 }
@@ -104,19 +69,19 @@ Plan::getParamSpecs() const
 void
 Plan::addParam(ParamName p, Value v)
 {
-    add_param(mParams, p, v);
+    vecMapAdd(mParams, p, v);
 }
 
 Value
 Plan::getParam(ParamName p) const
 {
-    return get_param(mParams, p);
+    return vecMapGet(mParams, p);
 }
 
 bool
 Plan::hasParam(ParamName p) const
 {
-    return has_param(mParams, p);
+    return vecMapHas(mParams, p);
 }
 
 void

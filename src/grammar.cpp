@@ -128,7 +128,7 @@ Context::pop(size_t n)
 bool
 Context::has(ParamName const& s) const
 {
-    if (mGlobalParamSpecs.find(s) != mGlobalParamSpecs.end())
+    if (vecMapHas(mGlobalParamSpecs, s))
     {
         return true;
     }

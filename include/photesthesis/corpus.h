@@ -19,15 +19,12 @@ namespace photesthesis
 
 using ParamName = Symbol;
 using RuleName = Symbol;
-using ParamSpecs = std::map<ParamName, RuleName>;
 
 // We use a vector of named params here rather than a std::map so that
 // we preserve the (semantically salient) order the user inserts params.
 // There are usualy only a handful so a linear "map" isn't a problem here.
 using Params = std::vector<std::pair<ParamName, Value>>;
-void add_param(Params& p, ParamName n, Value v);
-bool has_param(Params const& p, ParamName n);
-Value get_param(Params const& p, ParamName n);
+using ParamSpecs = std::vector<std::pair<ParamName, RuleName>>;
 
 using Comment = std::string;
 using Comments = std::vector<Comment>;

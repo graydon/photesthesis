@@ -141,4 +141,40 @@ scanWhitespace(std::istream& is)
     }
 }
 
+template <typename K, typename V>
+bool
+vecMapHas(std::vector<std::pair<K, V>> const& map, K const& k)
+{
+    for (auto const& pair : map)
+    {
+        if (pair.first == k)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+template <typename K, typename V>
+V const&
+vecMapGet(std::vector<std::pair<K, V>> const& map, K const& k)
+{
+    for (auto const& pair : map)
+    {
+        if (pair.first == k)
+        {
+            return pair.second;
+        }
+    }
+    throw std::runtime_error(std::string("unknown param: ") + k.getString());
+}
+
+template <typename K, typename V>
+void
+vecMapAdd(std::vector<std::pair<K, V>>& map, K const& k, V const& v)
+{
+    assert(!vecMapHas(map, k));
+    map.emplace_back(k, v);
+}
+
 } // namespace photesthesis
