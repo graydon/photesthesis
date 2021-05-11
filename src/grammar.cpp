@@ -387,7 +387,7 @@ extendByCycling(std::set<Params> const& params, ParamName param,
     while (!(cycledI && cycledJ))
     {
         Params tmp = *i;
-        tmp.emplace(param, *j);
+        tmp.emplace_back(param, *j);
         res.emplace(tmp);
         ++i;
         ++j;
@@ -603,7 +603,7 @@ Grammar::kPathCoverings(size_t k, ParamSpecs const& specs) const
             for (auto const& v : vals)
             {
                 Params p;
-                p.emplace(spec.first, v);
+                p.emplace_back(spec.first, v);
                 res.emplace(p);
             }
         }

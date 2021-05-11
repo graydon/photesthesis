@@ -14,6 +14,41 @@
 namespace photesthesis
 {
 
+#pragma region // Params
+
+void
+add_param(Params& p, ParamName n, Value v)
+{
+    assert(!has_param(p, n));
+    p.emplace_back(n, v);
+}
+
+bool
+has_param(Params const& p, ParamName n)
+{
+    for (auto const& pair : p)
+    {
+        if (pair.first == n)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+Value
+get_param(Params const& p, ParamName n)
+{
+    for (auto const& pair : p)
+    {
+        if (pair.first == n)
+        {
+            return pair.second;
+        }
+    }
+    throw std::runtime_error(std::string("unknown param: ") + n.getString());
+}
+
 #pragma region // Plan
 
 Plan::Plan(TestName tname) : mTestName(tname)
@@ -69,25 +104,19 @@ Plan::getParamSpecs() const
 void
 Plan::addParam(ParamName p, Value v)
 {
-    mParams.emplace(p, v);
+    add_param(mParams, p, v);
 }
 
 Value
 Plan::getParam(ParamName p) const
 {
-    auto i = mParams.find(p);
-    if (i == mParams.end())
-    {
-        throw std::runtime_error(std::string("unknown param: ") +
-                                 p.getString());
-    }
-    return i->second;
+    return get_param(mParams, p);
 }
 
 bool
 Plan::hasParam(ParamName p) const
 {
-    return mParams.find(p) != mParams.end();
+    return has_param(mParams, p);
 }
 
 void Plan::addComment(Comment const& comment)
@@ -169,7 +198,7 @@ operator>>(std::istream& is, Plan& plan)
         expectStr(is, "param:", PARAM);
         expectStr(is, "=", EQ);
         expectNonemptyStr(is, pname.getString());
-        params.emplace(pname, val);
+        params.emplace_back(pname, val);
         scanWhitespace(is);
     }
     plan.mComments = comments;
