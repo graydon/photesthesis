@@ -141,8 +141,8 @@ subtypes that represent booleans, numbers, symbols, and lists.
 
 Convenience `match` functions exist for pattern-matching various C++ types
 against `Value` in order to extract concrete information used to parameterize
-your tests, though you may need to write additional helpers in a common support
-class if you intend to extract the same structured type in many tests.
+your tests, and reusable composite matching rules can be written by extending
+the `Matcher<T>` type and overriding one of its `match` member functions.
 
 Similarly, any concrete value you wish to observe as a variable (see below) you
 will need to inject into the `Value` abstract domain. Again, there are
@@ -197,9 +197,9 @@ key ways:
 
 ## Dependencies
 
-This should build on any newish C++ compiler but it is only currently tested on
-clang 10. It's depends on nothing outside its own source tree and the C++
-standard library.
+This should build on any newish C++17-speaking C++ compiler, but it is only
+currently tested on clang 11. It's depends on nothing outside its own source
+tree and the C++ standard library.
 
 ## License
 

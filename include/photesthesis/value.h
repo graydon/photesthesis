@@ -11,6 +11,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <optional>
 
 #include <photesthesis/symbol.h>
 
@@ -31,6 +32,15 @@ enum class Type
 std::ostream& operator<<(std::ostream& os, const Type& ty);
 class Value;
 class PairValue;
+
+// Un-templated MatcherBase exists just to make the enable_if
+// overload guards selecting less ugly below.
+struct MatcherBase {};
+
+// Matcher is defined later on, it exists to let client matching
+// code interleave with the list-decomposing match functions here.
+template<typename T>
+struct Matcher;
 
 // A Value wraps a shared_ptr<ValueImpl> of a particular ValueImpl subtype.
 class ValueImpl
@@ -96,24 +106,44 @@ class Value
     // Matching a Value always succeeds and assigns *this to `out`.
     bool match(Value& out) const;
 
+
+    template <typename T, typename = typename std::enable_if<!std::is_base_of<MatcherBase,T>::value>::type>
+    bool matchOne(T& out) const
+    {
+        return mImpl && mImpl->match(out);
+    }
+
+    template <typename T>
+    bool matchOne(Matcher<T>& out) const;
+
     // Matching a single other type succeeds if the wrapped ValueImpl matches,
     // assigning the typed value to `out` on successful match.
     template <typename T>
     bool
     match(T& out) const
     {
-        return mImpl && mImpl->match(out);
+        return matchOne(out);
     }
 
     // Matching to a const-ref causes a match to a temporary and an equality
     // comparison on the const-ref. This is a bit subtle but it makes for fairly
     // pleasant idiomatic client code.
+    template <typename T, typename = typename std::enable_if<!std::is_base_of<MatcherBase,T>::value>::type>
+    bool
+    matchOne(T const& v) const
+    {
+        T tmp(v);
+        return match(tmp) && tmp == v;
+    }
+
+    template <typename T>
+    bool matchOne(Matcher<T> const& out) const;
+
     template <typename T>
     bool
     match(T const& v) const
     {
-        T tmp(v);
-        return match(tmp) && tmp == v;
+        return matchOne(v);
     }
 
     // Matching any 2-or-more element argpack succeeds if the wrapped ValueImpl
@@ -133,6 +163,12 @@ class Value
 
   protected:
     std::shared_ptr<const ValueImpl> mImpl;
+};
+
+template<typename T>
+struct Matcher : public MatcherBase, public std::optional<T> {
+    virtual void match(Value val) {};
+    virtual bool match(Value val) const { return false; }
 };
 
 std::ostream& operator<<(std::ostream& os, const Value& val);
@@ -224,6 +260,22 @@ class StringValue : public TypedValue<std::string>
     Type getType() const;
     StringValue(std::string const& val);
 };
+
+template <typename T>
+inline bool
+Value::matchOne(Matcher<T>& m) const
+{
+    m.reset();
+    m.match(*this);
+    return m.has_value();
+}
+
+template <typename T>
+inline bool
+Value::matchOne(Matcher<T> const& m) const
+{
+    return m.match(*this);
+}
 
 template <typename T, typename... Args>
 inline bool

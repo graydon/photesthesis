@@ -1,5 +1,5 @@
 CXX=clang++
-CXXFLAGS=-I include -std=c++11 -g3 -O2 -Wall
+CXXFLAGS=-I include -std=c++17 -g3 -O2 -Wall
 HDRS=$(wildcard include/photesthesis/*.h)
 CPPS=$(wildcard src/*.cpp)
 
