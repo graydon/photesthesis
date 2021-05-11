@@ -65,6 +65,12 @@ class Test
         return mTranscript.getPlan().getParam(p);
     }
 
+    bool
+    hasParam(ParamName p)
+    {
+        return mTranscript.getPlan().hasParam(p);
+    }
+
     // Calling `invariant()` indicates a value you expect to be invariant across
     // all executions (so is neither relevant to trajectories nor transcripts).
     // If a value does not meet expectations, it will trigger a call to

@@ -41,6 +41,7 @@ class Plan
     ParamSpecs getParamSpecs() const;
     void addParam(ParamName p, Value v);
     Value getParam(ParamName p) const;
+    bool hasParam(ParamName p) const;
     bool operator==(Plan const& other) const;
     bool operator<(Plan const& other) const;
     friend std::ostream& operator<<(std::ostream& os, const Plan& plan);
