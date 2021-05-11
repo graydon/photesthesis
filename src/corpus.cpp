@@ -25,6 +25,11 @@ Plan::Plan(TestName tname, Params const& params)
 {
 }
 
+Plan::Plan(TestName tname, Comments const& comments, Params const& params)
+    : mTestName(tname), mComments(comments), mParams(params)
+{
+}
+
 void
 Plan::addToHash(XXHash64& h) const
 {
@@ -80,17 +85,34 @@ Plan::getParam(ParamName p) const
 }
 
 bool
+Plan::hasParam(ParamName p) const
+{
+    return mParams.find(p) != mParams.end();
+}
+
+void Plan::addComment(Comment const& comment)
+{
+    mComments.emplace_back(comment);
+}
+
+Comments const&
+Plan::getComments() const
+{
+    return mComments;
+}
+
+bool
 Plan::operator<(Plan const& other) const
 {
-    return std::tie(mTestName, mParams) <
-           std::tie(other.mTestName, other.mParams);
+    return std::tie(mTestName, mParams, mComments) <
+           std::tie(other.mTestName, other.mParams, other.mComments);
 }
 
 bool
 Plan::operator==(Plan const& other) const
 {
-    return std::tie(mTestName, mParams) ==
-           std::tie(other.mTestName, other.mParams);
+    return std::tie(mTestName, mParams, mComments) ==
+           std::tie(other.mTestName, other.mParams, other.mComments);
 }
 
 bool
@@ -108,6 +130,10 @@ Transcript::operator==(Transcript const& other) const
 std::ostream&
 operator<<(std::ostream& os, const Plan& plan)
 {
+    for (auto const& comment: plan.mComments)
+    {
+        os << "# " << comment << std::endl;
+    }
     for (auto const& pair : plan.mParams)
     {
         os << "param: " << pair.first << " = " << pair.second << std::endl;
@@ -118,8 +144,22 @@ operator<<(std::ostream& os, const Plan& plan)
 std::istream&
 operator>>(std::istream& is, Plan& plan)
 {
-    plan.mParams.clear();
-    scanWhitespace(is);
+    Params params;
+    Comments comments;
+    is >> std::ws;
+    while (is.good() && is.peek() == '#')
+    {
+        char c;
+        is.get(c);
+        scanWhitespace(is);
+        std::string str;
+        std::getline(is, str);
+        if (!str.empty())
+        {
+            comments.emplace_back(str);
+        }
+        scanWhitespace(is);
+    }
     while (is.good() && is.peek() == 'p')
     {
         ParamName pname("");
@@ -129,9 +169,11 @@ operator>>(std::istream& is, Plan& plan)
         expectStr(is, "param:", PARAM);
         expectStr(is, "=", EQ);
         expectNonemptyStr(is, pname.getString());
-        plan.addParam(pname, val);
+        params.emplace(pname, val);
         scanWhitespace(is);
     }
+    plan.mComments = comments;
+    plan.mParams = params;
     return is;
 }
 

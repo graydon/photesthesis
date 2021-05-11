@@ -21,6 +21,8 @@ using ParamName = Symbol;
 using RuleName = Symbol;
 using ParamSpecs = std::map<ParamName, RuleName>;
 using Params = std::map<ParamName, Value>;
+using Comment = std::string;
+using Comments = std::vector<Comment>;
 using TestName = Symbol;
 using VarName = Symbol;
 using PlanHash = uint64_t;
@@ -29,15 +31,20 @@ using Trajectory = uint64_t;
 class Plan
 {
     TestName mTestName;
+    Comments mComments;
     Params mParams;
 
   public:
     Plan(TestName tname);
     Plan(TestName tname, Params const& params);
+    Plan(TestName tname, Comments const& comments,
+         Params const& params);
 
     void addToHash(XXHash64& h) const;
     PlanHash getHashCode() const;
     TestName getTestName() const;
+    void addComment(Comment const& comment);
+    Comments const& getComments() const;
     ParamSpecs getParamSpecs() const;
     void addParam(ParamName p, Value v);
     Value getParam(ParamName p) const;
