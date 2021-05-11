@@ -8,10 +8,10 @@
 #include <iosfwd>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
-#include <optional>
 
 #include <photesthesis/symbol.h>
 
@@ -35,12 +35,13 @@ class PairValue;
 
 // Un-templated MatcherBase exists just to make the enable_if
 // overload guards selecting less ugly below.
-struct MatcherBase {};
+struct MatcherBase
+{
+};
 
 // Matcher is defined later on, it exists to let client matching
 // code interleave with the list-decomposing match functions here.
-template<typename T>
-struct Matcher;
+template <typename T> struct Matcher;
 
 // A Value wraps a shared_ptr<ValueImpl> of a particular ValueImpl subtype.
 class ValueImpl
@@ -106,15 +107,15 @@ class Value
     // Matching a Value always succeeds and assigns *this to `out`.
     bool match(Value& out) const;
 
-
-    template <typename T, typename = typename std::enable_if<!std::is_base_of<MatcherBase,T>::value>::type>
-    bool matchOne(T& out) const
+    template <typename T, typename = typename std::enable_if<
+                              !std::is_base_of<MatcherBase, T>::value>::type>
+    bool
+    matchOne(T& out) const
     {
         return mImpl && mImpl->match(out);
     }
 
-    template <typename T>
-    bool matchOne(Matcher<T>& out) const;
+    template <typename T> bool matchOne(Matcher<T>& out) const;
 
     // Matching a single other type succeeds if the wrapped ValueImpl matches,
     // assigning the typed value to `out` on successful match.
@@ -128,7 +129,8 @@ class Value
     // Matching to a const-ref causes a match to a temporary and an equality
     // comparison on the const-ref. This is a bit subtle but it makes for fairly
     // pleasant idiomatic client code.
-    template <typename T, typename = typename std::enable_if<!std::is_base_of<MatcherBase,T>::value>::type>
+    template <typename T, typename = typename std::enable_if<
+                              !std::is_base_of<MatcherBase, T>::value>::type>
     bool
     matchOne(T const& v) const
     {
@@ -136,8 +138,7 @@ class Value
         return match(tmp) && tmp == v;
     }
 
-    template <typename T>
-    bool matchOne(Matcher<T> const& out) const;
+    template <typename T> bool matchOne(Matcher<T> const& out) const;
 
     template <typename T>
     bool
@@ -165,10 +166,15 @@ class Value
     std::shared_ptr<const ValueImpl> mImpl;
 };
 
-template<typename T>
-struct Matcher : public MatcherBase, public std::optional<T> {
-    virtual void match(Value val) {};
-    virtual bool match(Value val) const { return false; }
+template <typename T>
+struct Matcher : public MatcherBase, public std::optional<T>
+{
+    virtual void match(Value val){};
+    virtual bool
+    match(Value val) const
+    {
+        return false;
+    }
 };
 
 std::ostream& operator<<(std::ostream& os, const Value& val);

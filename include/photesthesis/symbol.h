@@ -25,7 +25,9 @@ class Symbol
   public:
     Symbol(std::string const& s);
     Symbol(Symbol const&) = default;
-    Symbol() : Symbol("") {}
+    Symbol() : Symbol("")
+    {
+    }
     Symbol& operator=(Symbol const&) = default;
 
     bool operator==(Symbol const& other) const;

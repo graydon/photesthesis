@@ -146,8 +146,8 @@ Test::finiPathTrajectory()
         assert(mPathTrajStabilityMask.size() == gCov8BitLen);
         for (size_t i = 0; i < gCov8BitLen; ++i)
         {
-            mPathTrajCounters[i] =
-                CounterClasses[mPathTrajCounters[i]] & mPathTrajStabilityMask[i];
+            mPathTrajCounters[i] = CounterClasses[mPathTrajCounters[i]] &
+                                   mPathTrajStabilityMask[i];
         }
     }
     if (gCov8BitLen != 0)
@@ -262,9 +262,13 @@ Test::runPlanAndStabilize(Plan const& plan)
                         {
                             if (mVerboseLevel > 0)
                             {
-                                std::cout << "path counter " << i << " is still unstable: "
-                                << static_cast<int>(savedPathBuf[i]) << " vs. "
-                                << static_cast<int>(mPathTrajCounters[i]) << std::endl;
+                                std::cout
+                                    << "path counter " << i
+                                    << " is still unstable: "
+                                    << static_cast<int>(savedPathBuf[i])
+                                    << " vs. "
+                                    << static_cast<int>(mPathTrajCounters[i])
+                                    << std::endl;
                             }
                             nNewMasked += 1;
                             nMasked += 1;
@@ -477,12 +481,12 @@ Test::randomlyExpandCorpus(Trajectories& trajectories, uint64_t steps,
     }
     if (mVerboseLevel > 0)
     {
-        std::cout << "explored " << steps << " random plans at depth "
-                  << depth << std::endl
+        std::cout << "explored " << steps << " random plans at depth " << depth
+                  << std::endl
                   << "expanded corpus by " << newTrajs << " to "
                   << mCorp.getTranscripts(tname).size()
-                  << " distinct trajectories over "
-                  << gCov8BitLen << " edge counters" << std::endl;
+                  << " distinct trajectories over " << gCov8BitLen
+                  << " edge counters" << std::endl;
         reportFailures(failures);
     }
     return failures;

@@ -540,7 +540,8 @@ operator>>(std::istream& is, Value& val)
             {
                 is.get(c);
                 tmp += c;
-            } while (is.good() && (is.peek() == '_' || std::isalnum(is.peek())));
+            } while (is.good() &&
+                     (is.peek() == '_' || std::isalnum(is.peek())));
             val = Value(Symbol(tmp));
         }
     }

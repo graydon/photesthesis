@@ -45,8 +45,7 @@ class Plan
   public:
     Plan(TestName tname);
     Plan(TestName tname, Params const& params);
-    Plan(TestName tname, Comments const& comments,
-         Params const& params);
+    Plan(TestName tname, Comments const& comments, Params const& params);
 
     void addToHash(XXHash64& h) const;
     PlanHash getHashCode() const;

@@ -119,7 +119,8 @@ Plan::hasParam(ParamName p) const
     return has_param(mParams, p);
 }
 
-void Plan::addComment(Comment const& comment)
+void
+Plan::addComment(Comment const& comment)
 {
     mComments.emplace_back(comment);
 }
@@ -159,7 +160,7 @@ Transcript::operator==(Transcript const& other) const
 std::ostream&
 operator<<(std::ostream& os, const Plan& plan)
 {
-    for (auto const& comment: plan.mComments)
+    for (auto const& comment : plan.mComments)
     {
         os << "# " << comment << std::endl;
     }
@@ -330,7 +331,8 @@ Corpus::Corpus(std::string const& path, bool saveOnDestroy)
         {
             in.exceptions(std::ifstream::failbit | std::ifstream::badbit);
         }
-        try {
+        try
+        {
             scanWhitespace(in);
             while (in.good())
             {
@@ -339,7 +341,9 @@ Corpus::Corpus(std::string const& path, bool saveOnDestroy)
                 addTranscript(trans);
                 scanWhitespace(in);
             }
-        } catch (std::exception &e) {
+        }
+        catch (std::exception& e)
+        {
             std::string msg("error parsing file '");
             msg += mPath;
             msg += "' at offset ";
