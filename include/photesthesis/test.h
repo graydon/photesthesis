@@ -11,6 +11,13 @@
 
 namespace photesthesis
 {
+
+// Clients should throw RejectPlan from within Test::run() any time
+// they wish to reject a Plan rather than run and record it.
+class RejectPlan
+{
+};
+
 class Test
 {
 

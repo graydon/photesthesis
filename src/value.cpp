@@ -5,6 +5,7 @@
 #include "photesthesis/util.h"
 #include <cassert>
 #include <cctype>
+#include <cstddef>
 #include <iostream>
 #include <memory>
 #include <photesthesis/value.h>
@@ -84,6 +85,11 @@ Type
 Value::getType() const
 {
     return mImpl ? mImpl->getType() : Type::Nil;
+}
+size_t
+Value::getSize() const
+{
+    return mImpl ? mImpl->getSize() : 0;
 }
 Value::Value(std::shared_ptr<const ValueImpl> vip) : mImpl(vip)
 {
@@ -554,6 +560,12 @@ Type
 PairValue::getType() const
 {
     return Type::Pair;
+}
+size_t
+PairValue::getSize() const
+{
+    return mValue.first.getSize() +
+           (mValue.second ? mValue.second->getSize() : 0);
 }
 PairValue::PairValue(Value head, std::shared_ptr<const PairValue> tail)
     : TypedValue(std::make_pair(head, tail))

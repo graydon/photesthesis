@@ -99,8 +99,50 @@ Plan::getComments() const
 bool
 Plan::operator<(Plan const& other) const
 {
-    return std::tie(mTestName, mParams, mComments) <
-           std::tie(other.mTestName, other.mParams, other.mComments);
+    // We have a fairly involved operator< because this dictates both the
+    // "comfortable reading" order of the corpus file _and_ the order of
+    // preference for "smaller" equal-trajectory transcripts.
+    if (mTestName < other.mTestName)
+    {
+        return true;
+    }
+    if (other.mTestName < mTestName)
+    {
+        return false;
+    }
+    if (mParams.size() < other.mParams.size())
+    {
+        return true;
+    }
+    if (other.mParams.size() < mParams.size())
+    {
+        return false;
+    }
+    for (size_t i = 0; i < mParams.size(); ++i)
+    {
+        auto const& apair = mParams.at(i);
+        auto const& bpair = other.mParams.at(i);
+        if (apair.first < bpair.first)
+        {
+            return true;
+        }
+        if (bpair.first < apair.first)
+        {
+            return false;
+        }
+        size_t asz = apair.second.getSize();
+        size_t bsz = bpair.second.getSize();
+        if (asz < bsz)
+        {
+            return true;
+        }
+        if (bsz < asz)
+        {
+            return false;
+        }
+    }
+    return std::tie(mParams, mComments) <
+           std::tie(other.mParams, other.mComments);
 }
 
 bool
@@ -361,6 +403,19 @@ void
 Corpus::addTranscript(Transcript const& ts)
 {
     bool inserted = getTranscripts(ts.getTestName()).emplace(ts).second;
+    assert(inserted);
+    markDirty();
+}
+
+void
+Corpus::replaceTranscript(Transcript const& oldTs, Transcript const& newTs)
+{
+    assert(oldTs.getTestName() == newTs.getTestName());
+    auto& transcripts = getTranscripts(oldTs.getTestName());
+    auto i = transcripts.find(oldTs);
+    assert(i != transcripts.end());
+    transcripts.erase(i);
+    bool inserted = transcripts.emplace(newTs).second;
     assert(inserted);
     markDirty();
 }

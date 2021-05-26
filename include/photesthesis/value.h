@@ -48,6 +48,7 @@ class ValueImpl
 {
   public:
     virtual Type getType() const = 0;
+    virtual size_t getSize() const = 0;
     virtual bool match() const;
     virtual bool
     match(std::pair<Value, std::shared_ptr<const PairValue>>& out) const;
@@ -68,6 +69,7 @@ class Value
 {
   public:
     Type getType() const;
+    size_t getSize() const;
     Value(std::shared_ptr<const ValueImpl> vip);
     Value(Value const&) = default;
     Value& operator=(Value const&) = default;
@@ -185,6 +187,11 @@ template <typename T> class TypedValue : public ValueImpl
 
   public:
     virtual Type getType() const override = 0;
+    virtual size_t
+    getSize() const override
+    {
+        return 1;
+    }
     virtual ~TypedValue()
     {
     }
@@ -213,6 +220,7 @@ class PairValue
 
   public:
     Type getType() const override;
+    size_t getSize() const override;
     const size_t mLength;
     PairValue(Value head, std::shared_ptr<const PairValue> tail);
 

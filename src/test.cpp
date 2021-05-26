@@ -308,10 +308,23 @@ bool
 Test::runPlanAndMaybeExpandCorpus(Plan const& plan, Trajectories& trajectories)
 {
     auto tname = plan.getTestName();
-    runPlanAndStabilize(plan);
-    if (trajectories.find(mTrajectory) == trajectories.end() &&
-        mCorp.getTranscripts(tname).find(mTranscript) ==
-            mCorp.getTranscripts(tname).end())
+
+    try
+    {
+        runPlanAndStabilize(plan);
+    }
+    catch (RejectPlan& _e)
+    {
+        return false;
+    }
+
+    auto& transcripts = mCorp.getTranscripts(tname);
+    auto tji = trajectories.find(mTrajectory);
+    auto tje = trajectories.end();
+    auto tsi = transcripts.find(mTranscript);
+    auto tse = transcripts.end();
+
+    if (tji == tje && tsi == tse)
     {
         if (mVerboseLevel > 1)
         {
@@ -322,6 +335,24 @@ Test::runPlanAndMaybeExpandCorpus(Plan const& plan, Trajectories& trajectories)
         mCorp.addTranscript(mTranscript);
         return true;
     }
+    else if (tji != tje)
+    {
+        if (mTranscript < tji->second)
+        {
+            // Preserve only the minimal transcript from
+            // each trajectory equivalence class.
+            if (mVerboseLevel > 1)
+            {
+                std::cout << "replacing transcript: " << std::endl;
+                std::cout << tji->second;
+                std::cout << "with trajectory-equivalent but smaller transcript"
+                          << std::endl;
+                std::cout << mTranscript;
+            }
+            mCorp.replaceTranscript(tji->second, mTranscript);
+            tji->second = mTranscript;
+        }
+    }
     return false;
 }
 
@@ -329,6 +360,7 @@ void
 Test::reportFailures(Failures const& failures) const
 {
     if (mVerboseLevel > 0)
+    {
         if (!failures.empty())
         {
             std::cout << "failing test hashes: ";
@@ -347,6 +379,7 @@ Test::reportFailures(Failures const& failures) const
             }
             std::cout << std::endl;
         }
+    }
 }
 
 Test::Failures
@@ -421,7 +454,16 @@ Test::checkCorpus(std::map<Trajectory, Transcript>& trajectories)
         {
             continue;
         }
-        checkTranscript(ts);
+
+        try
+        {
+            checkTranscript(ts);
+        }
+        catch (RejectPlan const& _e)
+        {
+            continue;
+        }
+
         if (mFailed)
         {
             failures.emplace_back(ts.getPlan().getHashCode());

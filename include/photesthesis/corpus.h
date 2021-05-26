@@ -100,6 +100,7 @@ class Corpus
     void save();
     std::set<Transcript>& getTranscripts(TestName tname);
     void addTranscript(Transcript const& ts);
+    void replaceTranscript(Transcript const& oldTs, Transcript const& newTs);
     void updateTranscript(Transcript const& ts);
 };
 } // namespace photesthesis
