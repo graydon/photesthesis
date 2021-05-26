@@ -82,8 +82,9 @@ exprGrammar()
     gram.addRule(MUL, {{gram.Int64(0)}, {gram.Ref(EXPR), gram.Ref(EXPR)}});
 
     // LET introduces X as a context symbol.
-    gram.addRule(LET, {{gram.Int64(0)},
-                       {gram.Sym(X), gram.Ref(EXPR), gram.Ref(EXPR, {X})}});
+    gram.addRule(
+        LET, {{gram.Int64(0)},
+              {gram.Sym(X), gram.Ref(EXPR), addContext(X, gram.Ref(EXPR))}});
     gram.addRule(VAR, {{gram.Sym(X)}});
     gram.addRule(EXPR, {{gram.Int64(1)},
                         {gram.Int64(2)},
@@ -93,7 +94,7 @@ exprGrammar()
                         {gram.Ref(MUL)},
                         {gram.Ref(LET)},
                         // References to VAR need X as a context symbol.
-                        {{gram.Ref(VAR)}, {X}}});
+                        inContext(X, {gram.Ref(VAR)})});
     return gram;
 }
 

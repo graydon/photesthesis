@@ -44,8 +44,7 @@ Lit::getValue() const
 
 #pragma region // Ref
 
-Ref::Ref(RuleName const& r, std::initializer_list<ParamName> ctxExt)
-    : mRuleName(r), mCtxExt(ctxExt)
+Ref::Ref(RuleName const& r) : mRuleName(r)
 {
     static uint64_t sTag{0};
     mTag = sTag++;
@@ -72,13 +71,21 @@ Ref::getCtxExt() const
     return mCtxExt;
 }
 
+RefPtr
+addContext(ParamName ctx, RefPtr ref)
+{
+    auto newRef = std::make_shared<Ref>(ref->mRuleName);
+    newRef->mCtxExt.insert(ref->mCtxExt.begin(), ref->mCtxExt.end());
+    newRef->mCtxExt.emplace(ctx);
+    return newRef;
+}
+
 #pragma endregion // Ref
 
 #pragma region // Production
 
-Production::Production(std::initializer_list<AtomPtr> atoms,
-                       std::initializer_list<ParamName> req)
-    : mAtoms(atoms), mCtxReq(req), mHasRefs(false)
+Production::Production(std::initializer_list<AtomPtr> atoms)
+    : mAtoms(atoms), mHasRefs(false)
 {
     for (auto const& atom : mAtoms)
     {
@@ -89,6 +96,45 @@ Production::Production(std::initializer_list<AtomPtr> atoms,
         }
     }
 }
+
+std::set<ParamName> const&
+Production::getCtxReq() const
+{
+    return mCtxReq;
+}
+
+std::set<ParamName> const&
+Production::getCtxReqNot() const
+{
+    return mCtxReqNot;
+}
+
+std::vector<AtomPtr> const&
+Production::getAtoms() const
+{
+    return mAtoms;
+}
+
+bool
+Production::hasRefs() const
+{
+    return mHasRefs;
+}
+
+Production
+inContext(ParamName ctx, Production prod)
+{
+    prod.mCtxReq.emplace(ctx);
+    return prod;
+}
+
+Production
+notInContext(ParamName ctx, Production prod)
+{
+    prod.mCtxReqNot.emplace(ctx);
+    return prod;
+}
+
 #pragma endregion // Production
 
 #pragma region // Rule
@@ -153,6 +199,18 @@ Context::has(std::set<ParamName> const& ss) const
     }
     return true;
 }
+bool
+Context::hasNone(std::set<ParamName> const& ss) const
+{
+    for (auto const& s : ss)
+    {
+        if (has(s))
+        {
+            return false;
+        }
+    }
+    return true;
+}
 
 #pragma endregion // Context
 
@@ -185,9 +243,9 @@ Grammar::Str(std::string const& s)
 }
 
 RefPtr
-Grammar::Ref(RuleName const& s, std::initializer_list<ParamName> ctxExt)
+Grammar::Ref(RuleName const& s)
 {
-    return std::make_shared<const class Ref>(s, ctxExt);
+    return std::make_shared<const class Ref>(s);
 }
 
 void
@@ -221,7 +279,7 @@ Grammar::expandKPathPrefix(size_t k, KPath const& prefix, Context& context,
 
     for (auto const& prod : prods)
     {
-        for (auto const& ext : prod.get().mAtoms)
+        for (auto const& ext : prod.get().getAtoms())
         {
             auto ref = std::dynamic_pointer_cast<const class Ref>(ext);
             if (ref)
@@ -284,14 +342,15 @@ Grammar::getActiveProductions(RuleName rule, size_t depthLimit,
     bool skippedDueToRefs = false;
     for (auto const& prod : prods)
     {
-        if (depthLimit == 1 && prod.mHasRefs)
+        if (depthLimit == 1 && prod.hasRefs())
         {
             // We avoid descend into a production with a ref if we're at the
             // depth limit.
             skippedDueToRefs = true;
             continue;
         }
-        if (context.has(prod.mCtxReq))
+        if (context.has(prod.getCtxReq()) &&
+            context.hasNone(prod.getCtxReqNot()))
         {
             activeProds.emplace_back(prod);
         }
@@ -472,7 +531,7 @@ Grammar::kPathCoveringOrMinimalExpansion(std::vector<RefPtr> const& path,
         std::set<std::vector<Value>> prefixes{{Value(rule)}};
         bool productionCoversSomeKPath = false;
 
-        for (auto const& atom : prod.mAtoms)
+        for (auto const& atom : prod.getAtoms())
         {
             kpath.emplace_back(atom);
             if (paths.find(kpath) != paths.end())
@@ -487,7 +546,7 @@ Grammar::kPathCoveringOrMinimalExpansion(std::vector<RefPtr> const& path,
             kpath.pop_back();
         }
 
-        for (auto const& atom : prod.mAtoms)
+        for (auto const& atom : prod.getAtoms())
         {
             std::set<Value> atomExpansion;
             if (auto lit = std::dynamic_pointer_cast<const Lit>(atom))
@@ -635,7 +694,7 @@ Grammar::randomValueFromRule(RuleName rule, std::default_random_engine& gen,
     if (!prods.empty())
     {
         auto& prod = pickUniform(gen, prods).get();
-        for (auto atom : prod.mAtoms)
+        for (auto atom : prod.getAtoms())
         {
             if (auto lit = std::dynamic_pointer_cast<const Lit>(atom))
             {

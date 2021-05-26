@@ -17,6 +17,13 @@
 namespace photesthesis
 {
 
+class Atom;
+class Lit;
+class Ref;
+using AtomPtr = std::shared_ptr<const Atom>;
+using LitPtr = std::shared_ptr<const Lit>;
+using RefPtr = std::shared_ptr<const Ref>;
+
 // An Atom is a component of a Production in a Grammar: either a Lit (a.k.a.
 // terminal) or a Ref (a.k.a. nonterminal).
 class Atom
@@ -48,44 +55,73 @@ class Ref : public Atom
 {
     uint64_t mTag;
     const RuleName mRuleName;
-    const std::set<ParamName> mCtxExt;
+    std::set<ParamName> mCtxExt;
 
   public:
-    Ref(RuleName const& r, std::initializer_list<ParamName> ctxExt = {});
+    Ref(RuleName const& r);
     virtual ~Ref();
     RuleName const& getRuleName() const;
     uint64_t getTag() const;
     std::set<ParamName> getCtxExt() const;
+
+    // This free functions extends the mCtxExt member of a RefPtr,
+    // returning a new RefPtr.
+    friend RefPtr addContext(ParamName ctx, RefPtr ref);
 };
 
-using AtomPtr = std::shared_ptr<const Atom>;
-using LitPtr = std::shared_ptr<const Lit>;
-using RefPtr = std::shared_ptr<const Ref>;
+RefPtr addContext(ParamName ctx, RefPtr ref);
 
 // A Production is one alternative in a given Rule. It holds a list of Atoms
-// that make up the content of the alternative, as well as a set of parameter
-// names that it can depend on the presence-of in its production context.
-struct Production
+// that make up the content of the alternative, as well as two sets of parameter
+// names that it can depend on the presence-of (or absence-of) in its production
+// context.
+class Production
 {
+    // Parameter names that must be present in the context in order
+    // to enable this production.
+    std::set<ParamName> mCtxReq;
+
+    // Parameter names that must be absent in the context in order
+    // to enable this production.
+    std::set<ParamName> mCtxReqNot;
+
+    // Atoms that make up the production.
     const std::vector<AtomPtr> mAtoms;
-    const std::set<ParamName> mCtxReq;
+
+    // Cache the presence of absence of any refs in the atoms.
     bool mHasRefs{false};
-    Production(std::initializer_list<AtomPtr> atoms,
-               std::initializer_list<ParamName> req = {});
+
+  public:
+    std::set<ParamName> const& getCtxReq() const;
+    std::set<ParamName> const& getCtxReqNot() const;
+    std::vector<AtomPtr> const& getAtoms() const;
+    bool hasRefs() const;
+
+    // These two free functions extend the mCtxReq and mCtxReqNot
+    // sets, returning new Productions.
+    friend Production inContext(ParamName ctx, Production prod);
+    friend Production notInContext(ParamName ctx, Production prod);
+
+    Production(std::initializer_list<AtomPtr> atoms);
 };
+
+// Evidently we need to delcare these out-of-line from the class
+// as well if we want them to be found without relying on ADL?
+Production inContext(ParamName ctx, Production prod);
+Production notInContext(ParamName ctx, Production prod);
 
 // A Rule (a.k.a. nonterminal) is a named set of productions that can be
 // referenced elsewhere in a Grammar.
 struct Rule
 {
-    std::vector<Production> mProductions;
+    const std::vector<Production> mProductions;
     Rule(std::initializer_list<Production> productions);
 };
 
 // A Context enables writing context-sensitive Productions in Grammars. The
 // semantic content of a context is essentially a "set of named flags" and you
-// can guard any given Production on the presence of one of those flags in the
-// context it's being expanded in.
+// can guard any given Production on the presence or absence of one of those
+// flags in the context it's being expanded in.
 //
 // Internally, a Context is a pair of ParamName-sets, one global and one local.
 // The global part is just the key-set of the ParamSpecs map used to populate a
@@ -104,6 +140,7 @@ class Context
     void pop(size_t n);
     bool has(ParamName const& s) const;
     bool has(std::set<ParamName> const& ss) const;
+    bool hasNone(std::set<ParamName> const& ss) const;
 };
 
 // A k-path is a path of symbols through the grammar with exactly k elements.
@@ -164,7 +201,7 @@ class Grammar
     std::set<Params> kPathCoverings(size_t k, ParamSpecs const& specs) const;
 
   public:
-    RefPtr Ref(RuleName const&, std::initializer_list<ParamName> ctxExt = {});
+    RefPtr Ref(RuleName const&);
     LitPtr Sym(Symbol const&);
     LitPtr Bool(bool);
     LitPtr Int64(int64_t);
