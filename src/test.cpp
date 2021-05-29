@@ -337,10 +337,11 @@ Test::runPlanAndMaybeExpandCorpus(Plan const& plan, Trajectories& trajectories)
     }
     else if (tji != tje)
     {
-        if (mTranscript < tji->second)
+        if (!tji->second.getPlan().isManual() && mTranscript < tji->second)
         {
             // Preserve only the minimal transcript from
-            // each trajectory equivalence class.
+            // each trajectory equivalence class
+            // (unless the plan is a manual one).
             if (mVerboseLevel > 1)
             {
                 std::cout << "replacing transcript: " << std::endl;

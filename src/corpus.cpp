@@ -2,6 +2,8 @@
 // under the Apache License, Version 2.0. See the COPYING file at the root
 // of this distribution or at http://www.apache.org/licenses/LICENSE-2.0
 
+#include <climits>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <photesthesis/3rdparty/xxhash64.h>
@@ -16,7 +18,8 @@ namespace photesthesis
 
 #pragma region // Plan
 
-Plan::Plan(TestName tname) : mTestName(tname)
+Plan::Plan(TestName tname, bool isManual)
+    : mTestName(tname), mIsManual(isManual)
 {
 }
 
@@ -25,15 +28,11 @@ Plan::Plan(TestName tname, Params const& params)
 {
 }
 
-Plan::Plan(TestName tname, Comments const& comments, Params const& params)
-    : mTestName(tname), mComments(comments), mParams(params)
-{
-}
-
 void
 Plan::addToHash(XXHash64& h) const
 {
     addSymbolToHash(h, mTestName);
+    addValueToHash(h, Value::Bool(mIsManual));
     addStringToHash(h, ":");
     for (auto const& pair : mParams)
     {
@@ -84,6 +83,12 @@ Plan::hasParam(ParamName p) const
     return vecMapHas(mParams, p);
 }
 
+bool
+Plan::isManual() const
+{
+    return mIsManual;
+}
+
 void
 Plan::addComment(Comment const& comment)
 {
@@ -107,6 +112,14 @@ Plan::operator<(Plan const& other) const
         return true;
     }
     if (other.mTestName < mTestName)
+    {
+        return false;
+    }
+    if (mIsManual < other.mIsManual)
+    {
+        return true;
+    }
+    if (other.mIsManual < mIsManual)
     {
         return false;
     }
@@ -148,8 +161,9 @@ Plan::operator<(Plan const& other) const
 bool
 Plan::operator==(Plan const& other) const
 {
-    return std::tie(mTestName, mParams, mComments) ==
-           std::tie(other.mTestName, other.mParams, other.mComments);
+    return std::tie(mTestName, mIsManual, mParams, mComments) ==
+           std::tie(other.mTestName, other.mIsManual, other.mParams,
+                    other.mComments);
 }
 
 bool
@@ -268,8 +282,16 @@ Transcript::clearVars()
 std::ostream&
 operator<<(std::ostream& os, const Transcript& transcript)
 {
-    os << "#### transcript: " << transcript.getTestName() << " 0x" << std::hex
-       << transcript.getPlan().getHashCode() << std::dec << std::endl;
+    os << "#### transcript: " << transcript.getTestName();
+    if (transcript.mPlan.isManual())
+    {
+        os << " (manual)" << std::endl;
+    }
+    else
+    {
+        os << " 0x" << std::hex << transcript.mPlan.getHashCode() << std::dec
+           << std::endl;
+    }
     os << transcript.mPlan;
     for (auto const& triple : transcript.mVars)
     {
@@ -292,14 +314,31 @@ std::istream&
 operator>>(std::istream& is, Transcript& transcript)
 {
     transcript = Transcript();
-    std::string HASHES, TRANSCRIPT;
+    std::string HASHES, TRANSCRIPT, HASH_OR_MANUAL;
+    bool isManual{false};
     TestName tname("");
     uint64_t plan_hash{0};
-    is >> HASHES >> TRANSCRIPT >> tname >> std::hex >> plan_hash >> std::dec;
+    is >> HASHES >> TRANSCRIPT >> tname >> HASH_OR_MANUAL;
+    if (HASH_OR_MANUAL == "(manual)")
+    {
+        isManual = true;
+    }
+    else
+    {
+        plan_hash = std::strtoull(HASH_OR_MANUAL.c_str(), nullptr, 0);
+        if (plan_hash == 0 || plan_hash == ULLONG_MAX)
+        {
+            throw std::runtime_error("unexpected hash value: " +
+                                     HASH_OR_MANUAL);
+        }
+    }
     expectNonemptyStr(is, tname.getString());
-    Plan plan(tname);
+    Plan plan(tname, isManual);
     is >> plan;
-    expectVal<int64_t>(is, plan_hash, plan.getHashCode());
+    if (!plan.isManual())
+    {
+        expectVal<int64_t>(is, plan_hash, plan.getHashCode());
+    }
     transcript = Transcript(plan);
 
     scanWhitespace(is);

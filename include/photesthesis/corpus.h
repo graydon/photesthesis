@@ -36,17 +36,18 @@ using Trajectory = uint64_t;
 class Plan
 {
     TestName mTestName;
+    bool mIsManual{false};
     Comments mComments;
     Params mParams;
 
   public:
-    Plan(TestName tname);
+    Plan(TestName tname, bool isManual = false);
     Plan(TestName tname, Params const& params);
-    Plan(TestName tname, Comments const& comments, Params const& params);
 
     void addToHash(XXHash64& h) const;
     PlanHash getHashCode() const;
     TestName getTestName() const;
+    bool isManual() const;
     void addComment(Comment const& comment);
     Comments const& getComments() const;
     ParamSpecs getParamSpecs() const;
