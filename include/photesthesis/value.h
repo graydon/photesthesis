@@ -173,7 +173,7 @@ struct Matcher : public MatcherBase, public std::optional<T>
 {
     virtual void match(Value val){};
     virtual bool
-    match(Value val) const
+    matchConst(Value val) const
     {
         return false;
     }
@@ -288,7 +288,7 @@ template <typename T>
 inline bool
 Value::matchOne(Matcher<T> const& m) const
 {
-    return m.match(*this);
+    return m.matchConst(*this);
 }
 
 template <typename T, typename... Args>
@@ -357,7 +357,7 @@ PairValue::match(T& head, Args&... tail) const
 {
     auto& pair = getValue();
     return pair.first.match(head) &&
-           (!pair.second || pair.second->match(tail...));
+           (pair.second && pair.second->match(tail...));
 }
 
 template <typename T, typename... Args>
@@ -366,7 +366,7 @@ PairValue::match(T const& head, Args&... tail) const
 {
     auto& pair = getValue();
     return pair.first.match(head) &&
-           (!pair.second || pair.second->match(tail...));
+           (pair.second && pair.second->match(tail...));
 }
 
 template <typename T, typename... Args>
@@ -375,7 +375,7 @@ PairValue::match(T& head, Args const&... tail) const
 {
     auto& pair = getValue();
     return pair.first.match(head) &&
-           (!pair.second || pair.second->match(tail...));
+           (pair.second && pair.second->match(tail...));
 }
 
 template <typename T, typename... Args>
@@ -384,7 +384,7 @@ PairValue::match(T const& head, Args const&... tail) const
 {
     auto& pair = getValue();
     return pair.first.match(head) &&
-           (!pair.second || pair.second->match(tail...));
+           (pair.second && pair.second->match(tail...));
 }
 
 } // namespace photesthesis
